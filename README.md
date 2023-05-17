@@ -1,6 +1,6 @@
 # `noztr`
 
-Zig library for the nostr protocol
+Nostr protocol
 
 ## NIPs
 
