@@ -6,41 +6,20 @@ const io = std.io;
 const debug = std.debug;
 const testing = std.testing;
 
-const event = @import("event.zig");
-const Event = event.Event;
-const RawEvent = event.RawEvent;
-const EventKind = event.EventKind;
+const Event = @import("event.zig").Event;
+const EventKind = @import("event.zig").EventKind;
 
 pub fn parseMsgToEvent(allocator: mem.Allocator, msg: []const u8) !Event {
-    // var parser: json.Parser = json.Parser.init(allocator, false);
-    // var tree: json.ValueTree = try parser.parse(msg);
-    // defer parser.deinit();
-    // defer tree.deinit();
     var stream: json.TokenStream = json.TokenStream.init(msg);
-    var rawEvent: event.RawEvent = try json.parse(event.RawEvent, &stream, .{ .allocator = allocator });
-    defer json.parseFree(event.RawEvent, rawEvent, .{ .allocator = allocator });
-
-    debug.print("id: {s}\n", .{rawEvent.id});
-    debug.print("pubkey: {s}\n", .{rawEvent.pubkey});
-    debug.print("created_at: {d}\n", .{rawEvent.created_at});
-    debug.print("kind: {any}\n", .{rawEvent.kind});
-    debug.print("content: {s}\n", .{rawEvent.content});
-    debug.print("\ntags:\n", .{});
-    for (rawEvent.tags) |tag| {
-        debug.print("kind: {s}, id: {s}\n", .{ tag[0], tag[1] });
-    }
-    debug.print("\n", .{});
-    debug.print("sig: {s}\n", .{rawEvent.sig});
-
-    var e = Event.init(allocator, rawEvent);
-    return e;
+    var event: Event = try json.parse(Event, &stream, .{ .allocator = allocator });
+    return event;
 }
 
-test "parses event kind 0" {
-    var gpa = heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    debug.print("\n", .{});
+test "parses event" {
+    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    defer arena.deinit();
 
+    const allocator = arena.allocator();
     const msg =
         \\ {
         \\   "id": "4376c65d2f232afbe9b882a35baa4f6fe8667c4e684749af565f981833ed6a65",
@@ -56,9 +35,10 @@ test "parses event kind 0" {
         \\ }
     ;
 
-    const parsedEvent = try parseMsgToEvent(allocator, msg);
-    try testing.expect(parsedEvent.kind == EventKind.TextNote);
+    var event = try parseMsgToEvent(allocator, msg);
+    defer json.parseFree(Event, event, .{ .allocator = allocator });
 
-    const didLeak = gpa.deinit();
-    try testing.expect(didLeak == .ok);
+    event.print();
+
+    try testing.expect(event.kind == 1);
 }
